@@ -11,7 +11,6 @@ public class GamePanel extends JPanel implements KeyListener {
     private final GameRenderer gameRenderer;
 
     public GamePanel() {
-        // Inicjalizacja silnika
         this.gameEngine = new GameEngine();
         this.gameRenderer = new GameRenderer(gameEngine.getState());
 
