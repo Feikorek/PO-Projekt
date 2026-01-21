@@ -7,11 +7,9 @@ public class Item implements Serializable {
     
     private String name;
     private String description;
-    private String type;   // WEAPON, ARMOR, RING, NECKLACE, POTION
-    private String rarity; // COMMON, RARE, EPIC, LEGENDARY
+    private String type;   
+    private String rarity; 
     private int value; 
-    
-    // --- NOWOŚĆ: Poziom ulepszenia (Enchanting) ---
     private int upgradeLevel = 0;
 
     public Item(String name, String description, String type, String rarity, int value) {
@@ -22,21 +20,44 @@ public class Item implements Serializable {
         this.value = value;
     }
 
-    // Metoda do ulepszania
+    // TA METODA MUSI BYĆ DOKŁADNIE TAKA - TO ONA ODPOWIADA ZA WYŚWIETLANIE NAZWY
+    @Override
+    public String toString() {
+        String statLabel;
+        switch (type) {
+            case "WEAPON": statLabel = "ATK"; break;
+            case "ARMOR":  statLabel = "DEF"; break;
+            case "POTION": statLabel = "HEAL"; break;
+            default:       statLabel = "STAT"; break;
+        }
+
+        String levelInfo = (upgradeLevel > 0 ? " +" + upgradeLevel : "");
+        
+        // Zwraca czytelny tekst zamiast fantasyrealms.game.item.Item@...
+        return "[" + rarity + "] " + name + levelInfo + " (" + type + ") | " + statLabel + ": " + value;
+    }
+
+    // Reszta metod (upgrade, gettery itp.)
     public void upgrade() {
         this.upgradeLevel++;
-        // Każde ulepszenie zwiększa statystyki o 20% + 2 punkty stałe
         this.value = (int)(this.value * 1.2) + 2;
     }
-    
-    public int getUpgradeLevel() { return upgradeLevel; }
 
     public String getName() { 
-        // Jeśli przedmiot jest ulepszony, dodajemy "+X" do nazwy
         return name + (upgradeLevel > 0 ? " +" + upgradeLevel : ""); 
     }
-    
+
     public String getType() { return type; }
+    
     public int getValue() { return value; }
 
+    public String getRarity() { 
+        return rarity; 
+    }
+
+    // DODAJ TĘ METODĘ - Jej brakował najbardziej:
+    public String getDescription() {
+        return description;
+    }
+    
 }
