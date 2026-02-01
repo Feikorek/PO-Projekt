@@ -19,13 +19,39 @@ public class GameEngine {
     private GameState state;
 
     public GameEngine() {
+        // 1. Inicjalizacja gracza
         Character initialPlayer = createCharacter();
-        List<Point> initialWalls = generateMap();
-        this.state = new GameState(initialPlayer, initialWalls);
-        generateEnemies();
+        
+        // 2. Tworzenie stanu gry (ściany zostaną wygenerowane w goToNextLevel)
+        this.state = new GameState(initialPlayer, new ArrayList<>());
+        
+        // 3. Generowanie pierwszego poziomu (Level 1)
+        goToNextLevel();
     }
 
-    public GameState getState() { return state; }
+    public GameState getState() { 
+        return state; 
+    }
+
+    /**
+     * Mechanika przejścia na kolejny poziom.
+     * Zwiększa licznik levelu, czyści mapę i generuje nowe przeszkody oraz wrogów.
+     */
+    public void goToNextLevel() {
+        state.currentLevel++;
+        
+        // Reset pozycji gracza na start (Miasto)
+        state.playerX = 1;
+        state.playerY = 1;
+        
+        // Generowanie nowej geometrii mapy
+        state.walls = generateMap();
+        
+        // Rozmieszczenie nowych przeciwników
+        generateEnemies();
+        
+        // Jeśli to poziom wyższy niż 1, możemy tu dodać logikę wzmacniania potworów
+    }
 
     private Character createCharacter() {
         String[] options = {"Wojownik", "Czarodziej"};
@@ -42,14 +68,16 @@ public class GameEngine {
         List<Point> walls = new ArrayList<>();
         Random r = new Random();
 
-        // Punkty, które MUSZĄ być wolne od ścian
+        // Punkty krytyczne, które nie mogą być zablokowane
         List<Point> reservedPoints = new ArrayList<>();
-        reservedPoints.add(new Point(1, 1)); // Start/Miasto
-        reservedPoints.add(new Point(10, 10)); // Boss
+        reservedPoints.add(state.townLocation); // Miasto (1,1)
+        reservedPoints.add(state.bossLocation); // Boss (10,10)
+        reservedPoints.add(state.exitLocation); // Schody (11,0)
         
-        // Bufor bezpieczeństwa wokół kluczowych punktów (zapobiega murowaniu)
-        addBufferZone(reservedPoints, new Point(1, 1));
-        addBufferZone(reservedPoints, new Point(10, 10));
+        // Dodanie buforów wokół punktów, aby gracz mógł do nich dojść
+        addBufferZone(reservedPoints, state.townLocation);
+        addBufferZone(reservedPoints, state.bossLocation);
+        addBufferZone(reservedPoints, state.exitLocation);
 
         for (int x = 0; x < GameState.MAP_SIZE; x++) {
             for (int y = 0; y < GameState.MAP_SIZE; y++) {
@@ -57,9 +85,12 @@ public class GameEngine {
                 
                 // Granice mapy
                 if (x == 0 || x == GameState.MAP_SIZE - 1 || y == 0 || y == GameState.MAP_SIZE - 1) {
-                    walls.add(current);
+                    // Nie stawiaj ściany, jeśli to jest wyjście (schody)
+                    if (!current.equals(state.exitLocation)) {
+                        walls.add(current);
+                    }
                 } 
-                // Losowe ściany (15% szans), omijając punkty zarezerwowane
+                // Losowe ściany (15% szans)
                 else if (r.nextInt(100) < 15) {
                     if (!reservedPoints.contains(current)) {
                         walls.add(current);
@@ -87,7 +118,8 @@ public class GameEngine {
             if (!state.walls.contains(p) && 
                 !p.equals(state.townLocation) && 
                 !p.equals(state.bossLocation) &&
-                !p.equals(new Point(state.playerX, state.playerY))) {
+                !p.equals(state.exitLocation) &&
+                !(p.x == state.playerX && p.y == state.playerY)) {
                 
                 Monster m = EnemyFactory.spawnForRegion(state.player.getLevel());
                 state.enemiesOnMap.add(new GameState.MonsterEntity(m, p));
@@ -97,23 +129,50 @@ public class GameEngine {
 
     public void handleInput(int key) {
         if (state.currentState == GameState.State.GAME_OVER) return;
-        if (state.currentState == GameState.State.COMBAT) { handleCombatInput(key); return; }
+        if (state.currentState == GameState.State.COMBAT) { 
+            handleCombatInput(key); 
+            return; 
+        }
 
-        int nextX = state.playerX, nextY = state.playerY;
+        int nextX = state.playerX;
+        int nextY = state.playerY;
+
         if (key == KeyEvent.VK_UP) nextY--;
         else if (key == KeyEvent.VK_DOWN) nextY++;
         else if (key == KeyEvent.VK_LEFT) nextX--;
         else if (key == KeyEvent.VK_RIGHT) nextX++;
-        else if (key == KeyEvent.VK_E) { showInventory(); return; }
+        else if (key == KeyEvent.VK_E) { 
+            showInventory(); 
+            return; 
+        }
 
         Point nextP = new Point(nextX, nextY);
         
-        // Sprawdzanie kolizji ze ścianami i granicami
-        if (state.walls.contains(nextP) || nextX < 0 || nextX >= GameState.MAP_SIZE || nextY < 0 || nextY >= GameState.MAP_SIZE) return;
+        // Kolizja ze ścianami i granicami
+        if (state.walls.contains(nextP) || 
+            nextX < 0 || nextX >= GameState.MAP_SIZE || 
+            nextY < 0 || nextY >= GameState.MAP_SIZE) {
+            return;
+        }
 
-        // Lokacje specjalne
-        if (nextP.equals(state.townLocation)) { showTownDialog(); return; }
-        if (nextP.equals(state.bossLocation)) { startCombat(EnemyFactory.spawnBoss(state.player.getLevel())); return; }
+        // Wejście do miasta
+        if (nextP.equals(state.townLocation)) { 
+            showTownDialog(); 
+            return; 
+        }
+
+        // Walka z Bossem
+        if (nextP.equals(state.bossLocation)) { 
+            startCombat(EnemyFactory.spawnBoss(state.player.getLevel())); 
+            return; 
+        }
+
+        // --- NOWE: WEJŚCIE NA SCHODY (ZEJŚCIE NIŻEJ) ---
+        if (nextP.equals(state.exitLocation)) {
+            JOptionPane.showMessageDialog(null, "Schodzisz na poziom " + (state.currentLevel + 1) + "...");
+            goToNextLevel();
+            return;
+        }
 
         // Kolizja z potworami
         for (GameState.MonsterEntity me : new ArrayList<>(state.enemiesOnMap)) {
@@ -124,7 +183,8 @@ public class GameEngine {
             }
         }
         
-        state.playerX = nextX; state.playerY = nextY;
+        state.playerX = nextX; 
+        state.playerY = nextY;
     }
 
     private void startCombat(Monster enemy) {
@@ -209,7 +269,6 @@ public class GameEngine {
             return;
         }
 
-        // NAPRAWA WYŚWIETLANIA: Tworzymy tablicę Stringów na podstawie toString()
         String[] itemDisplayList = new String[inv.size()];
         for (int i = 0; i < inv.size(); i++) {
             itemDisplayList[i] = inv.get(i).toString();
@@ -225,10 +284,9 @@ public class GameEngine {
                 itemDisplayList[0]);
 
         if (selected != null) {
-            // Znajdujemy indeks wybranego tekstu w tablicy
             for (int i = 0; i < itemDisplayList.length; i++) {
                 if (itemDisplayList[i].equals(selected)) {
-                    state.player.equipItem(i); // Używamy metody equipItem z indeksem
+                    state.player.equipItem(i);
                     break;
                 }
             }
