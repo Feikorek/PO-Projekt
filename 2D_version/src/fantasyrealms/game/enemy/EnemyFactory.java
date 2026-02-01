@@ -32,12 +32,12 @@ public class EnemyFactory {
     // Ta metoda musi być POZA poprzednią metodą, ale WEWNĄTRZ klasy
     public static Boss spawnBoss(int level) {
         switch(level) {
-            case 1: return new Boss("Król Goblinów", 250, 20, 5, "Przyzwanie Goblinów");
-            case 2: return new Boss("Lodowy Gigant", 400, 35, 15, "Zamieć");
-            case 3: return new Boss("Faraon", 600, 50, 20, "Piaskowa Burza");
-            case 4: return new Boss("Hydra", 800, 65, 25, "Trujący Wyziew");
-            case 5: return new Boss("STAROŻYTNY SMOK", 1500, 100, 50, "Piekielny Ogień");
-            default: return new Boss("Mroczny Lord", level * 200, level * 20, level * 10, "Zniszczenie");
+            case 1: return new Boss("Król Goblinów", 200, 20, 5, "Przyzwanie Goblinów");
+            //case 2: return new Boss("Lodowy Gigant", 400, 35, 15, "Zamieć");
+            //case 3: return new Boss("Faraon", 600, 50, 20, "Piaskowa Burza");
+            //case 4: return new Boss("Hydra", 800, 65, 25, "Trujący Wyziew");
+            //case 5: return new Boss("STAROŻYTNY SMOK", 1500, 100, 50, "Piekielny Ogień");
+            default: return new Boss("Król Goblinów", 200, 20, 5, "Przyzwanie Goblinów");
         }
     }
 }
