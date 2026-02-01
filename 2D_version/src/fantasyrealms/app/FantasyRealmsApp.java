@@ -33,68 +33,72 @@ public class FantasyRealmsApp extends JFrame {
         private JButton unequipWeaponBtn, unequipArmorBtn, unequipRingBtn, unequipNecklaceBtn;
         private JButton attackBtn, skillBtn, fleeBtn;
         
-        // Cache na tekstury, aby nie wczytywać ich co klatkę
         private Map<String, Image> textureCache = new HashMap<>();
-        private Image grassImg, wallImg, townImg;
+        private Image grassImg, wallImg, townImg, exitImg;
 
         public GameView() {
-            setPreferredSize(new Dimension(
-                GameState.MAP_SIZE * GameState.TILE_SIZE + 250, 
-                GameState.MAP_SIZE * GameState.TILE_SIZE
-            ));
-            setLayout(null);
+    // Szerokość mapy + panel boczny (250px)
+    setPreferredSize(new Dimension(
+        GameState.MAP_SIZE * GameState.TILE_SIZE + 250, 
+        GameState.MAP_SIZE * GameState.TILE_SIZE
+    ));
+    setLayout(null);
 
-            // Stałe tekstury podłoża i otoczenia
-            grassImg = loadImage("grass.png");
-            wallImg = loadImage("wall.png");
-            townImg = loadImage("town.png");
+    // Ładowanie tekstur
+    grassImg = loadImage("grass.png");
+    wallImg = loadImage("wall.png");
+    townImg = loadImage("town.png");
+    
+    // NOWA TEKSTURA: Wczytujemy dedykowany plik dla schodów
+    exitImg = loadImage("schody.png"); 
 
-            int sidebarX = GameState.MAP_SIZE * GameState.TILE_SIZE + 160;
+    int sidebarX = GameState.MAP_SIZE * GameState.TILE_SIZE + 160;
 
-            unequipWeaponBtn = createBtn("Zdejmij", sidebarX, 340, () -> engine.getState().player.unequipWeapon(), true);
-            unequipArmorBtn = createBtn("Zdejmij", sidebarX, 370, () -> engine.getState().player.unequipArmor(), true);
-            unequipRingBtn = createBtn("Zdejmij", sidebarX, 400, () -> engine.getState().player.unequipRing(), true);
-            unequipNecklaceBtn = createBtn("Zdejmij", sidebarX, 430, () -> engine.getState().player.unequipNecklace(), true);
+    // Przyciski ekwipunku
+    unequipWeaponBtn = createBtn("Zdejmij", sidebarX, 340, () -> engine.getState().player.unequipWeapon(), true);
+    unequipArmorBtn = createBtn("Zdejmij", sidebarX, 370, () -> engine.getState().player.unequipArmor(), true);
+    unequipRingBtn = createBtn("Zdejmij", sidebarX, 400, () -> engine.getState().player.unequipRing(), true);
+    unequipNecklaceBtn = createBtn("Zdejmij", sidebarX, 430, () -> engine.getState().player.unequipNecklace(), true);
 
-            attackBtn = createBtn("1. ATAK", 50, 300, () -> engine.handleInput(KeyEvent.VK_1), false);
-            skillBtn = createBtn("2. SKILL", 160, 300, () -> engine.handleInput(KeyEvent.VK_2), false);
-            fleeBtn = createBtn("3. UCIECZKA", 270, 300, () -> engine.handleInput(KeyEvent.VK_3), false);
+    // Przyciski walki
+    attackBtn = createBtn("1. ATAK", 50, 300, () -> engine.handleInput(KeyEvent.VK_1), false);
+    skillBtn = createBtn("2. SKILL", 160, 300, () -> engine.handleInput(KeyEvent.VK_2), false);
+    fleeBtn = createBtn("3. UCIECZKA", 270, 300, () -> engine.handleInput(KeyEvent.VK_3), false);
 
-            addKeyListener(new KeyAdapter() {
-                @Override
-                public void keyPressed(KeyEvent e) {
-                    engine.handleInput(e.getKeyCode());
-                    repaint();
-                }
-            });
-            setFocusable(true);
+    addKeyListener(new KeyAdapter() {
+        @Override
+        public void keyPressed(KeyEvent e) {
+            engine.handleInput(e.getKeyCode());
+            repaint();
         }
+    });
+    setFocusable(true);
+}
 
         private Image getEntityImage(Object entity) {
-    // Jeśli to Boss, zawsze zwracaj grafikę króla goblinów
-    if (entity instanceof Boss) {
-        String bossFile = "krol_goblinow.png";
-        if (!textureCache.containsKey(bossFile)) {
-            textureCache.put(bossFile, loadImage(bossFile));
+            // Boss zawsze ma jedną, konkretną ikonę
+            if (entity instanceof Boss) {
+                return getCachedImage("krol_goblinow.png");
+            }
+
+            String fileName;
+            if (entity instanceof Warrior) fileName = "warrior.png";
+            else if (entity instanceof fantasyrealms.game.character.Wizard) fileName = "wizard.png";
+            else if (entity instanceof Monster) {
+                fileName = ((Monster) entity).getName().toLowerCase().replace(" ", "_") + ".png";
+            } else {
+                fileName = "default.png";
+            }
+
+            return getCachedImage(fileName);
         }
-        return textureCache.get(bossFile);
-    }
 
-    // Logika dla reszty (Gracz, zwykłe Monstery)
-    String fileName;
-    if (entity instanceof Warrior) fileName = "warrior.png";
-    else if (entity instanceof fantasyrealms.game.character.Wizard) fileName = "wizard.png";
-    else if (entity instanceof Monster) {
-        fileName = ((Monster) entity).getName().toLowerCase().replace(" ", "_") + ".png";
-    } else {
-        fileName = "default.png";
-    }
-
-    if (!textureCache.containsKey(fileName)) {
-        textureCache.put(fileName, loadImage(fileName));
-    }
-    return textureCache.get(fileName);
-}
+        private Image getCachedImage(String fileName) {
+            if (!textureCache.containsKey(fileName)) {
+                textureCache.put(fileName, loadImage(fileName));
+            }
+            return textureCache.get(fileName);
+        }
 
         private JButton createBtn(String txt, int x, int y, Runnable act, boolean isSmall) {
             JButton b = new JButton(txt);
@@ -130,49 +134,75 @@ public class FantasyRealmsApp extends JFrame {
             boolean exploring = (state.currentState == GameState.State.EXPLORING);
             boolean combat = (state.currentState == GameState.State.COMBAT);
 
+            // Przełączanie widoczności przycisków
             attackBtn.setVisible(combat);
             skillBtn.setVisible(combat);
             fleeBtn.setVisible(combat);
 
-            if (exploring) drawExploration(g, state);
-            else if (combat) drawCombat(g, state);
-            else if (state.currentState == GameState.State.GAME_OVER) drawGameOver(g);
+            if (exploring) {
+                drawExploration(g, state);
+                drawLevelHeader(g, state); // Rysowanie poziomu na górze
+            } else if (combat) {
+                drawCombat(g, state);
+            } else if (state.currentState == GameState.State.GAME_OVER) {
+                drawGameOver(g);
+            }
             
             drawSidebar(g, state, exploring);
         }
 
-        private void drawExploration(Graphics g, GameState state) {
-    int ts = GameState.TILE_SIZE;
-    
-    // Rysowanie trawy
-    for (int x = 0; x < GameState.MAP_SIZE; x++) {
-        for (int y = 0; y < GameState.MAP_SIZE; y++) {
-            if (grassImg != null) g.drawImage(grassImg, x * ts, y * ts, ts, ts, null);
-            else { g.setColor(new Color(34, 139, 34)); g.fillRect(x * ts, y * ts, ts, ts); }
+        private void drawLevelHeader(Graphics g, GameState state) {
+            g.setColor(new Color(0, 0, 0, 150)); // Półprzezroczyste tło dla czytelności
+            g.fillRect(0, 0, GameState.MAP_SIZE * GameState.TILE_SIZE, 35);
+            
+            g.setColor(Color.YELLOW);
+            g.setFont(new Font("Arial", Font.BOLD, 20));
+            String levelText = "LEVEL: " + state.currentLevel;
+            int textWidth = g.getFontMetrics().stringWidth(levelText);
+            // Centrowanie tekstu na obszarze mapy
+            g.drawString(levelText, (GameState.MAP_SIZE * GameState.TILE_SIZE) / 2 - (textWidth / 2), 25);
         }
-    }
 
-    // Ściany, miasto itp.
-    for (Point p : state.walls) renderSprite(g, wallImg, Color.GRAY, p.x, p.y);
-    renderSprite(g, townImg, Color.PINK, state.townLocation.x, state.townLocation.y);
-    
-    // --- TUTAJ WYMUSZAMY IKONĘ KRÓLA GOBLINÓW ---
-    Image bossIcon = loadImage("krol_goblinow.png");
-    renderSprite(g, bossIcon, Color.RED, state.bossLocation.x, state.bossLocation.y);
-    
-    // Zwykłe potwory
-    for (GameState.MonsterEntity me : state.enemiesOnMap) {
-        renderSprite(g, getEntityImage(me.monster), Color.GREEN, me.location.x, me.location.y);
-    }
-    
-    // Gracz
-    renderSprite(g, getEntityImage(state.player), Color.CYAN, state.playerX, state.playerY);
-}
+        private void drawExploration(Graphics g, GameState state) {
+            int ts = GameState.TILE_SIZE;
+            
+            // 1. Trawa
+            for (int x = 0; x < GameState.MAP_SIZE; x++) {
+                for (int y = 0; y < GameState.MAP_SIZE; y++) {
+                    if (grassImg != null) g.drawImage(grassImg, x * ts, y * ts, ts, ts, null);
+                    else { g.setColor(new Color(34, 139, 34)); g.fillRect(x * ts, y * ts, ts, ts); }
+                }
+            }
+
+            // 2. Ściany
+            for (Point p : state.walls) renderSprite(g, wallImg, Color.GRAY, p.x, p.y);
+            
+            // 3. Miasto
+            renderSprite(g, townImg, Color.PINK, state.townLocation.x, state.townLocation.y);
+            
+            // 4. Schody (Wyjście)
+            renderSprite(g, exitImg, Color.BLUE, state.exitLocation.x, state.exitLocation.y);
+            
+            // 5. Boss (Zawsze krol_goblinow.png)
+            renderSprite(g, getCachedImage("krol_goblinow.png"), Color.RED, state.bossLocation.x, state.bossLocation.y);
+            
+            // 6. Zwykłe potwory
+            for (GameState.MonsterEntity me : state.enemiesOnMap) {
+                renderSprite(g, getEntityImage(me.monster), Color.GREEN, me.location.x, me.location.y);
+            }
+            
+            // 7. Gracz
+            renderSprite(g, getEntityImage(state.player), Color.CYAN, state.playerX, state.playerY);
+        }
 
         private void renderSprite(Graphics g, Image img, Color fallback, int x, int y) {
             int ts = GameState.TILE_SIZE;
-            if (img != null) g.drawImage(img, x * ts, y * ts, ts, ts, null);
-            else { g.setColor(fallback); g.fillRect(x * ts + 5, y * ts + 5, ts - 10, ts - 10); }
+            if (img != null) {
+                g.drawImage(img, x * ts, y * ts, ts, ts, null);
+            } else {
+                g.setColor(fallback);
+                g.fillRect(x * ts + 5, y * ts + 5, ts - 10, ts - 10);
+            }
         }
 
         private void drawCombat(Graphics g, GameState state) {
@@ -187,7 +217,6 @@ public class FantasyRealmsApp extends JFrame {
                 boolean isBoss = state.currentEnemy instanceof Boss;
                 int spriteSize = isBoss ? 160 : 100;
                 
-                // Pobieranie unikalnego obrazka przeciwnika
                 Image enemyImg = getEntityImage(state.currentEnemy);
                 if (enemyImg != null) {
                     g.drawImage(enemyImg, 240, 40, spriteSize, spriteSize, null);
@@ -216,8 +245,10 @@ public class FantasyRealmsApp extends JFrame {
         }
 
         private void drawGameOver(Graphics g) {
-            g.setColor(Color.BLACK); g.fillRect(0, 0, getWidth(), getHeight());
-            g.setColor(Color.RED); g.setFont(new Font("Arial", Font.BOLD, 40));
+            g.setColor(Color.BLACK); 
+            g.fillRect(0, 0, getWidth(), getHeight());
+            g.setColor(Color.RED); 
+            g.setFont(new Font("Arial", Font.BOLD, 40));
             g.drawString("KONIEC GRY", 100, 200);
         }
 
@@ -235,6 +266,7 @@ public class FantasyRealmsApp extends JFrame {
             g.drawString("HP: " + state.player.getHp() + "/" + state.player.getMaxHp(), x, 75);
             g.drawString("Złoto: " + state.player.getGold(), x, 100);
             g.drawString("Atak: " + state.player.getTotalAttack(), x, 125);
+            g.drawString("Poziom Postaci: " + state.player.getLevel(), x, 150);
 
             g.setColor(Color.CYAN);
             g.setFont(new Font("Arial", Font.BOLD, 14));
